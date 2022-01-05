@@ -13,6 +13,14 @@ board_size(Board, size(Cols, Rows)) :-
     length(Board, Rows),
     nth0(0, Board, Row),
     length(Row, Cols).
+inside_board(Board, position(X, Y)) :-
+    board_size(Board, size(Cols, Rows)),
+    X >= 0,
+    X < Cols,
+    Y >= 0,
+    Y < Rows.
+empty_cell(Board, position(X, Y)) :-
+    nth00(X, Y, Board, empty).
 
 % play/0
 
@@ -148,10 +156,11 @@ valid_moves(game_state(Board, current_player(_), last_piece_played(LastPiece), L
 
 
 valid_move(Board, none, position(Cols, Rows)) :-
-    board_size(Board, size(Cols, Rows)),
+    inside_board(Board, position(Cols, Rows)). % Assumes the board is empty.
 
-valid_move(Board, LastPiece, Move) :-
-    
+valid_move(Board, position(LastX, LastY), position(MoveX, MoveY)) :-
+    inside_board(Board, position(Cols, Rows)),
+
 
 % value(+GameState, +Player, -Value)
 
