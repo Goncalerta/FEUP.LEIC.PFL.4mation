@@ -20,7 +20,8 @@ Pedro Gonçalo de Castro Correia up201905348@edu.fe.up.pt - __%
 
 Em 4Mation, dois jogadores colocam à vez uma peça no tabuleiro de maneira a criar
 uma linha, coluna ou diagonal de 4 peças jogadas por si. Nesta implementação do jogo, as peças do 
-jogador 1 serão representadas por 'X' e as do jogador 2 por 'O'.
+jogador 1 serão representadas por 'X' e as do jogador 2 por 'O'. Para além disso, o número necessário
+de peças consecutivas para ganhar o jogo é configurável.
 
 O tamanho do tabuleiro é definido antes de iniciar o jogo. O primeiro jogador pode colocar uma peça
 em qualquer posição do tabuleiro. Em todas as jogadas seguintes, a peça do jogador que está a jogar
