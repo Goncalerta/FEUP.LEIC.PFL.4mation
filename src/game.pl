@@ -7,7 +7,7 @@ initial_state(
         player_o(Py),  % TODO
         first_player(First), %
         winning_length(Goal) % TODO
-    ), game_state(Board, current_player(First), last_piece_played(none))
+    ), game_state(Board, current_player(First), last_piece_played(none), Config)
 ) :-
     initial_board(Cols, Rows, Board).
 

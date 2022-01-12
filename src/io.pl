@@ -58,7 +58,7 @@ print_banner_with_width(Lines, Width, HeightPadding, Margin) :-
 
 print_banner(Lines, WidthPadding, HeightPadding, Margin) :-
     maplist(atom_length, Lines, LineLengths),
-    max_list(LineLengths, LargestLineLength),
+    max_member(LargestLineLength, LineLengths),
     Width is WidthPadding + WidthPadding + LargestLineLength,
     print_banner_with_width(Lines, Width, HeightPadding, Margin).
 
@@ -73,8 +73,6 @@ print_player(player_o) :- write('player O').
 print_player_config(human) :- write('human').
 print_player_config(bot(Level)) :- write('bot with level '), write(Level).
 
-
-
 open_menu(MenuState) :-
     MenuState = menu_state(CurrentMenu, Config),
     display_menu(CurrentMenu, Config),
@@ -82,9 +80,9 @@ open_menu(MenuState) :-
 
 play_game(Config) :-
     initial_state(Config, GameState),
-    play_turn(GameState).
+    play_turn(GameState, Config).
 
-% play_turn(GameState) :-
+% play_turn(GameState, Config) :-
 %     %GameState = game_state(Board, current_player(Player), last_piece_played(Piece)),
 %     game_over(GameState, Winner),
 %     !, % TODO confirm if needed
@@ -361,3 +359,9 @@ response_config(
     config(Size, Px, Py, first_player(First), G)
 ) :-
     (First = player_x; First = player_o).
+
+response(
+    menu_state(current(rules), Config), 
+    back, 
+    open_menu(menu_state(current(main), Config))
+).
