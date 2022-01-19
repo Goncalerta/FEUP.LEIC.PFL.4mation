@@ -83,7 +83,6 @@ play_game(Config) :-
 play_turn(GameState, Config) :-
     GameState = game_state(Board, _, _, _, _, _),
     game_over(GameState, Winner),
-    !, % TODO confirm if needed
     display_board(Board),
     nl,
     open_menu(menu_state(game_over(Winner), Config)).
@@ -108,7 +107,7 @@ play_turn(GameState, Config, human) :-
 
 play_turn(GameState, Config, bot(Level)) :-
     write('The bot is thinking...\n'),
-    % TODO algum tipo de sleep?
+    sleep(1),
     choose_move(GameState, Level, Move),
     move(GameState, Move, NewGameState),
     play_turn(NewGameState, Config).
@@ -314,7 +313,8 @@ response(
     move(ColChar, RowNum),
     move(Col, Row)
 ) :-
-    char_code(ColChar, ColNum), % TODO quando nao metes um char, da erro
+    atom_length(ColChar, 1),
+    char_code(ColChar, ColNum),
     Col is ColNum - "a",
     Row is RowNum - 1,
     board_size(Board, size(BoardCols, BoardRows)),
