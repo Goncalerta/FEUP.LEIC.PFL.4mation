@@ -65,7 +65,7 @@ move(
     game_state(
         Board, 
         current_player(Player), 
-        _, 
+        last_move(Last), 
         Players, 
         Goal
     ),
@@ -163,14 +163,54 @@ valid_moves(
 
 % value(+GameState, +Player, -Value)
 value(GameState, Player, Value) :-
-    value(GameState, Player, Value, 0).
+    game_over(GameState, Player),
+    !,
+    GameState = game_state(Board, _, _, _, _),
+    board_size(Board, size(Cols, Rows)),
+    Value is 2 + Cols*(Cols+1) + Rows*(Rows+1).
 
-value(GameState, Player, Value, Acc) :-
-    GameState = game_state(Board, _, last_move(Last), _, win_target(Goal)),
-    wins_game(Board, Player, Goal),
-    Acc1 is (Acc + Goal),
-    
+value(GameState, Player, -1) :-
+    valid_moves(GameState, ValidMoves),
+    next_player(Player, Opponent),
+    findall(
+        Mv,
+        NewState^( 
+            member(Mv, ValidMoves), 
+            move(GameState, Mv, NewState), 
+            game_over(NewState, Opponent) 
+        ), 
+        [_|_]
+    ),
+    !.
 
+value(game_state(Board, _, last_move(Last), _, _), Player, Value) :-
+    !,
+    Last = position(Col, Row),
+    ColRight is Col + 1,
+    RowDown is Row + 1,
+    RowUp is Row - 1,
+    value_counter(Board, Last, direction(-1, 0), Player, 0, AccLeft, IncAccLeft),
+    value_counter(Board, position(ColRight, Row), direction(1, 0), Player, IncAccLeft, AccRight, _),
+    value_counter(Board, Last, direction(0, -1), Player, 0, AccUp, IncAccUp),
+    value_counter(Board, position(Col, RowDown), direction(0, 1), Player, IncAccUp, AccDown, _),
+    value_counter(Board, Last, direction(-1, -1), Player, 0, AccLeftUp, IncAccLeftUp),
+    value_counter(Board, position(ColRight, RowDown), direction(1, 1), Player, IncAccLeftUp, AccRightDown, _),
+    value_counter(Board, Last, direction(-1, 1), Player, 0, AccLeftDown, IncAccLeftDown),
+    value_counter(Board, position(ColRight, RowUp), direction(1, -1), Player, IncAccLeftDown, AccRightUp, _),
+    Value is (AccLeft + AccRight + AccUp + AccDown + AccLeftUp + AccRightDown + AccLeftDown + AccRightUp).
+
+value(_, _, 0).
+
+value_counter(B, M, D, P, I, R, RI) :- value_counter(B, M, D, P, I, R, RI, 0).
+value_counter(Board, position(Col, Row), direction(I, J), Player, Inc, Result, ResultInc, Acc) :-
+    nth00(Col, Row, Board, Player),
+    Col1 is Col + I,
+    Row1 is Row + J,
+    Inc1 is Inc + 1,
+    Acc1 is Acc + Inc1,
+    !,
+    value_counter(Board, position(Col1, Row1), direction(I, J), Player, Inc1, Result, ResultInc, Acc1).
+value_counter(_, _, _, _, Inc, Result, Inc, Result).
 
 % choose_move(+GameState, +Level, -Move)
 choose_move(GameState, 1, Move) :-
@@ -183,7 +223,7 @@ choose_move(GameState, 2, Move):-
     setof(
         Value-Mv, 
         NewState^( 
-            memberchk(Mv, ListOfMoves), 
+            member(Mv, ListOfMoves), 
             move(GameState, Mv, NewState), 
             value(NewState, Player, Value) 
         ), 
@@ -192,4 +232,4 @@ choose_move(GameState, 2, Move):-
     choose_last_move(OrderedMoves, _-Move).
 
 choose_last_move([Last], Last).
-choose_last_move([_ | Moves], Last) :- chooseLastMove(Moves, Last).
+choose_last_move([_ | Moves], Last) :- choose_last_move(Moves, Last).

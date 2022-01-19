@@ -382,7 +382,7 @@ response_config(
 response_config(
     bot(player_o, Level),
     config(Size, players(Px, _), F, G),
-    config(Size, players(Px, player_o(bot(Level))), F, G)
+    config(Size, players(Px, bot(Level)), F, G)
 ) :-
     integer(Level),
     Level > 0,
@@ -391,13 +391,13 @@ response_config(
 response_config(
     human(player_x),
     config(Size, players(_, Po), F, G),
-    config(Size, players(player_x(human), Po), Po, F, G)
+    config(Size, players(human, Po), Po, F, G)
 ).
 
 response_config(
     human(player_o),
     config(Size, players(Px, _), F, G),
-    config(Size, players(Px, player_o(human)), F, G)
+    config(Size, players(Px, human), F, G)
 ).
 
 response_config(
@@ -427,16 +427,24 @@ do_menu_action(menu_state(config, _), config(Config)) :-
 do_menu_action(_, exit).
 
 do_game_action(GameState, Config, move(Col, Row)) :-
-    Move = position(Col, Row),
-    GameState = game_state(Board, _, last_move(Last), _, _),
-    move(GameState, Move, NewGameState),
+    move(GameState, position(Col, Row), NewGameState),
     play_turn(NewGameState, Config).
+
+do_game_action(GameState, Config, move(Col, Row)) :-
+    GameState = game_state(Board, _, _, _, _),
+    empty_cell(Board, position(Col, Row)),
+    ColNum is Col + "a",
+    RowNum is Row + 1,
+    char_code(ColChar, ColNum),
+    format('Move (~w, ~w) is not valid. It must be adjacent to the last move.\n', [ColChar, RowNum]),
+    read_response(GameState, Action),
+    do_game_action(GameState, Config, Action).
 
 do_game_action(GameState, Config, move(Col, Row)) :-
     ColNum is Col + "a",
     RowNum is Row + 1,
     char_code(ColChar, ColNum),
-    format('Move (~w, ~w) is not valid. It must be adjacent to the last move.\n', [ColChar, RowNum]),
+    format('Move (~w, ~w) is not valid. You must play on an empty cell.\n', [ColChar, RowNum]),
     read_response(GameState, Action),
     do_game_action(GameState, Config, Action).
 
