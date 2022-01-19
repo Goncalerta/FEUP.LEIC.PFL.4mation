@@ -1,5 +1,3 @@
-
-
 print_n(_, 0).
 print_n(S, N) :-
     N > 0,
@@ -78,68 +76,42 @@ open_menu(MenuState) :-
     read_response(MenuState, Action),
     do_menu_action(MenuState, Action).
 
-
-do_menu_action(menu_state(_, Config), start_game) :-
-    play_game(Config).
-
-do_menu_action(menu_state(_, Config), open_menu(Menu)) :-
-    open_menu(menu_state(Menu, Config)).
-
-do_menu_action(_, go_back).
-
-do_menu_action(menu_state(config, _), config(Config)) :-
-    open_menu(menu_state(config, Config)).
-
-% do_action(move(Col, Row)) :- 
-
-% do_action(give_up)
-
-
 play_game(Config) :-
     initial_state(Config, GameState),
     play_turn(GameState, Config).
 
-% play_turn(GameState) :-
-%     % GameState = game_state(Board, current_player(Player), last_move(Piece)),
-%     game_over(GameState, Winner),
-%     !, % TODO confirm if needed
-%     display_game(GameState, Winner),
-%     open_menu(menu_state(game_over(Winner), Config)).
-    % write('END').
+play_turn(GameState, Config) :-
+    GameState = game_state(Board, _, _, _, _, _),
+    game_over(GameState, Winner),
+    !, % TODO confirm if needed
+    display_board(Board),
+    nl,
+    open_menu(menu_state(game_over(Winner), Config)).
 
-play_turn(GameState) :-
+play_turn(GameState, Config) :-
     GameState = game_state(_, current_player(Player), _, player_x(Px), player_o(Po), _),
     display_game(GameState),
     player_info(Player, Px, Po, PlayerInfo),
-    play_turn(GameState, PlayerInfo).
+    play_turn(GameState, Config, PlayerInfo).
 
-play_turn(GameState, human) :-
+play_turn(GameState, Config, human) :-
     GameState = game_state(_, _, _, _, _, win_target(Goal)),
     format('Get a row, column or diagonal of ~w consecutive pieces to win.\n', Goal),
     nl,
     write('    |: move(column, row).     Put a piece on the given position.\n'),
     write('    column - character; row - positive integer (must be a valid move).\n\n'),
     write('    |: give_up.               Stop playing the game (the opponent automatically wins).\n'),
-    read_response(GameState).
+    nl,
+    read_response(GameState, Action),
+    !,
+    do_game_action(GameState, Config, Action).
 
-play_turn(GameState, bot(Level)) :-
+play_turn(GameState, Config, bot(Level)) :-
     write('The bot is thinking...\n'),
     % TODO algum tipo de sleep?
     choose_move(GameState, Level, Move),
-    move_action(GameState, Move).
-
-move_action(GameState, Move) :-
-    GameState = game_state(Board, _, last_move(Last), _, _, _),
-    valid_move(Board, Last, Move),
     move(GameState, Move, NewGameState),
-    play_turn(NewGameState).
-
-move_action(GameState, position(Col, Row)) :-
-    ColNum is Col + "a",
-    RowNum is Row + 1,
-    char_code(ColChar, ColNum),
-    format('Move (~w, ~w) is not valid. It must be adjacent to the last move.\n', [ColChar, RowNum]),
-    read_response(GameState).
+    play_turn(NewGameState, Config).
 
 read_response(State, Action) :- 
     read_term(Response, [syntax_errors(quiet)]),
@@ -233,16 +205,46 @@ display_menu(
     write('First to play:    '), print_player(First), nl,
     nl.
 
+display_menu(menu_state(game_over(none), _)) :-
+    nl,
+    write('Game Over! The game ended in a draw.'),
+    nl,
+    write('    |: again.           Play again.\n'),
+    write('    |: back.            Go back.\n'),
+    nl.
+
+display_menu(menu_state(game_over(Winner), _)) :-
+    nl,
+    write('Game Over! Player '), print_player(Winner), write(' wins!'),
+    nl,
+    write('    |: again.           Play again.\n'),
+    write('    |: back.            Go back.\n'),
+    nl.
+
 display_board_bar(Cols) :-
     margin(4),
     write('|'),
     print_n('---|', Cols).
 
-display_board_row(Row, RowNum) :-
-    length(Row, _),
+markValidMoves(Row, RowNum, ValidMoves, RowWithLegalMoves) :-
+    markValidMoves(Row, 0, RowNum, ValidMoves, RowWithLegalMoves).
+markValidMoves([], _, _, _, []).
+markValidMoves([empty | InNext], ColNum, RowNum, ValidMoves, [legal_move | OutNext]) :-
+    memberchk(position(ColNum, RowNum), ValidMoves),
+    !,
+    ColNum1 is ColNum + 1,
+    markValidMoves(InNext, ColNum1, RowNum, ValidMoves, OutNext).
+
+markValidMoves([Element | InNext], ColNum, RowNum, ValidMoves, [Element | OutNext]) :-
+    ColNum1 is ColNum + 1,
+    markValidMoves(InNext, ColNum1, RowNum, ValidMoves, OutNext).
+
+display_board_row(Row, RowNum, ValidMoves) :-
+    RowNum1 is RowNum - 1,
     format(' ~|~` t~d~2+ ', [RowNum]),  % write number with leading spaces
     write('|'),
-    maplist(get_symbol, Row, RowSymbols),
+    markValidMoves(Row, RowNum1, ValidMoves, RowWithLegalMoves),
+    maplist(get_symbol, RowWithLegalMoves, RowSymbols),
     maplist(format(' ~s |'), RowSymbols).
 
 display_board_header(Cols) :-
@@ -255,31 +257,36 @@ display_board_header(Cols) :-
     display_board_bar(Cols),
     nl.
 
-display_board_body(Rows) :-
-    display_board_body(Rows, 1).
-display_board_body([], _).
-display_board_body([Row|Next], RowNum) :-
-    display_board_row(Row, RowNum),
+display_board_body(Rows, ValidMoves) :-
+    display_board_body(Rows, 1, ValidMoves).
+display_board_body([], _, _).
+display_board_body([Row|Next], RowNum, ValidMoves) :-
+    display_board_row(Row, RowNum, ValidMoves),
     nl,
     length(Row, Cols),
     display_board_bar(Cols),
     nl,
     NextRowNum is RowNum + 1,
-    display_board_body(Next, NextRowNum).
+    display_board_body(Next, NextRowNum, ValidMoves).
     
-display_board(Board) :-
+display_board(Board, ValidMoves) :-
     board_size(Board, size(Cols, _)),
     nl,
     display_board_header(Cols),
-    display_board_body(Board).
+    display_board_body(Board, ValidMoves).
 
-display_game(game_state(Board, current_player(Player), _, _, _, _)) :-
-    display_board(Board),
+display_board(Board) :-
+    display_board(Board, []).
+
+display_game(GameState) :-
+    GameState = game_state(Board, current_player(Player), _, _, _, _),
+    valid_moves(GameState, ValidMoves),
+    display_board(Board, ValidMoves),
     nl,
     write('It\'s '), print_player(Player), write('\'s turn. ').
 
 response(
-    menu_state(main, Config), 
+    menu_state(main, _), 
     play,
     start_game
 ).
@@ -299,16 +306,15 @@ response(
 response(
     menu_state(main, _), 
     exit,
-    go_back,
+    exit
 ).
 
 response(
-    GameState,
+    game_state(Board, _, _, _, _, _),
     move(ColChar, RowNum),
     move(Col, Row)
 ) :-
-    GameState = game_state(Board, _, _, _, _, _),
-    char_code(ColChar, ColNum),
+    char_code(ColChar, ColNum), % TODO quando nao metes um char, da erro
     Col is ColNum - "a",
     Row is RowNum - 1,
     board_size(Board, size(BoardCols, BoardRows)),
@@ -318,7 +324,7 @@ response(
     Row < BoardRows.
 
 response(
-    game_state(State), 
+    game_state(_, _, _, _, _, _), 
     give_up,
     give_up
 ).
@@ -330,21 +336,33 @@ response(
 ) :- response_config(Command, OldConfig, NewConfig).
 
 response(
-    menu_state(config, Config), 
+    menu_state(config, _), 
     back, 
-    go_back
+    open_menu(main)
 ).
 
 response(
-    menu_state(rules, Config), 
+    menu_state(rules, _), 
     back, 
-    go_back
+    open_menu(main)
+).
+
+response(
+    menu_state(game_over(_), _), 
+    again,
+    start_game
+).
+
+response(
+    menu_state(game_over(_), _), 
+    back,
+    open_menu(main)
 ).
 
 response_config(
     board_size(Cols, Rows), 
-    config(_, Px, Po, F, G), 
-    config(size(Cols, Rows), Px, Po, F, G)
+    config(_, Px, Po, F, win_target(Goal)), 
+    config(size(Cols, Rows), Px, Po, F, win_target(Goal))
 ) :-
     integer(Cols),
     integer(Rows),
@@ -392,8 +410,38 @@ response_config(
 
 response_config(
     win_pieces(Goal),
-    config(Size, Px, Po, F, _),
-    config(Size, Px, Po, F, win_target(Goal))
+    config(size(Cols, Rows), Px, Po, F, _),
+    config(size(Cols, Rows), Px, Po, F, win_target(Goal))
 ) :-
     integer(Goal),
     Goal > 0.
+
+do_menu_action(menu_state(_, Config), start_game) :-
+    play_game(Config).
+
+do_menu_action(menu_state(_, Config), open_menu(Menu)) :-
+    open_menu(menu_state(Menu, Config)).
+
+do_menu_action(menu_state(config, _), config(Config)) :-
+    open_menu(menu_state(config, Config)).
+
+do_menu_action(_, exit).
+
+do_game_action(GameState, Config, move(Col, Row)) :-
+    Move = position(Col, Row),
+    GameState = game_state(Board, _, last_move(Last), _, _, _),
+    valid_move(Board, Last, Move),
+    move(GameState, Move, NewGameState),
+    play_turn(NewGameState, Config).
+
+do_game_action(GameState, Config, move(Col, Row)) :-
+    ColNum is Col + "a",
+    RowNum is Row + 1,
+    char_code(ColChar, ColNum),
+    format('Move (~w, ~w) is not valid. It must be adjacent to the last move.\n', [ColChar, RowNum]),
+    read_response(GameState, Action),
+    do_game_action(GameState, Config, Action).
+
+do_game_action(game_state(_, current_player(Player), _, _, _, _), Config, give_up) :-
+    next_player(Player, Opponent),
+    open_menu(menu_state(game_over(Opponent), Config)).

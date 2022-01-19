@@ -91,6 +91,7 @@ game_over(
     ), 
     Winner
 ) :-
+    (Winner = player_x; Winner = player_o),
     wins_game(Board, Winner, Goal).
 
 wins_game(_, _, 0).
