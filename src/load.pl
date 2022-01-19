@@ -13,8 +13,7 @@ play :- open_menu(
         main,
         config(
             size(8, 8),
-            player_x(human),
-            player_o(human),
+            players(human, human),
             first_player(player_x),
             win_target(4)
         )

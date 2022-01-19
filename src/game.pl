@@ -3,8 +3,7 @@
 initial_state(
     config(
         size(Cols, Rows),
-        player_x(Px),
-        player_o(Po),
+        Players,
         first_player(First),
         win_target(Goal)
     ), 
@@ -12,8 +11,7 @@ initial_state(
         Board, 
         current_player(First), 
         last_move(none), 
-        player_x(Px), 
-        player_o(Po), 
+        Players, 
         win_target(Goal)
     )
 ) :-
@@ -24,32 +22,19 @@ initial_state(
 next_player(player_x, player_o).
 next_player(player_o, player_x).
 
-% player_info(Player, Px, Po, PlayerInfo)
-player_info(player_x, Px, _, Px).
-player_info(player_o, _, Po, Po).
+% player_info(Player, Players, PlayerInfo)
+player_info(player_x, players(Px, _), Px).
+player_info(player_o, players(_, Po), Po).
 
-% move(+GameState, +Move, -NewGameState)
-move(
-    game_state(
-        Board, 
-        current_player(Player), 
-        _, 
-        Px, 
-        Po, 
-        Goal
-    ),
-    Move,
-    game_state(
-        BoardNext, 
-        current_player(PlayerNext), 
-        last_move(Move),
-        Px, 
-        Po, 
-        Goal
-    )
-) :-
-    move_board(Board, Move, Player, BoardNext),
-    next_player(Player, PlayerNext).
+valid_move(Board, none, Move) :-
+    empty_cell(Board, Move).
+
+valid_move(Board, position(LastX, LastY), position(MoveX, MoveY)) :-
+    empty_cell(Board, position(MoveX, MoveY)),
+    DistX is (MoveX - LastX),
+    DistY is (MoveY - LastY),
+    between(-1, 1, DistX),
+    between(-1, 1, DistY).
 
 % move_board(+Board, +Move, +Piece, -BoardNext)
 % Piece is one of [player_x, player_o]
@@ -74,6 +59,28 @@ move_board([Row|Rest], position(X, Y), Piece, [RowNext|RestNext]) :-
     Row = RowNext,
     Y1 is Y - 1,
     move_board(Rest, position(X, Y1), Piece, RestNext).
+
+% move(+GameState, +Move, -NewGameState)
+move(
+    game_state(
+        Board, 
+        current_player(Player), 
+        _, 
+        Players, 
+        Goal
+    ),
+    Move,
+    game_state(
+        BoardNext, 
+        current_player(PlayerNext), 
+        last_move(Move),
+        Players,
+        Goal
+    )
+) :-
+    valid_move(Board, Last, Move),
+    move_board(Board, Move, Player, BoardNext),
+    next_player(Player, PlayerNext).
  
 % game_over(+GameState, -Winner)
 % Winner is one of [player_x, player_o, none]
@@ -85,7 +92,6 @@ game_over(
         Board, 
         _, 
         _,
-        _, 
         _, 
         win_target(Goal)
     ), 
@@ -150,24 +156,40 @@ wins_game_diagonally_up(Board, I, J, Winner, Goal) :-
 
 % valid_moves(+GameState, -ListOfMoves)
 valid_moves(
-    game_state(Board, _, last_move(LastMove), _, _, _),
+    game_state(Board, _, last_move(LastMove), _, _),
     ListOfMoves
 ) :-
     findall(Move, valid_move(Board, LastMove, Move), ListOfMoves).
 
-valid_move(Board, none, Move) :-
-    empty_cell(Board, Move).
-
-valid_move(Board, position(LastX, LastY), position(MoveX, MoveY)) :-
-    empty_cell(Board, position(MoveX, MoveY)),
-    DistX is (MoveX - LastX),
-    DistY is (MoveY - LastY),
-    between(-1, 1, DistX),
-    between(-1, 1, DistY).
-
 % value(+GameState, +Player, -Value)
+value(GameState, Player, Value) :-
+    value(GameState, Player, Value, 0).
+
+value(GameState, Player, Value, Acc) :-
+    GameState = game_state(Board, _, last_move(Last), _, win_target(Goal)),
+    wins_game(Board, Player, Goal),
+    Acc1 is (Acc + Goal),
+    
+
 
 % choose_move(+GameState, +Level, -Move)
 choose_move(GameState, 1, Move) :-
     valid_moves(GameState, ListOfMoves),
     random_member(Move, ListOfMoves).
+
+choose_move(GameState, 2, Move):-
+    GameState = game_state(_, current_player(Player), _, _, _),
+    valid_moves(GameState, ListOfMoves),
+    setof(
+        Value-Mv, 
+        NewState^( 
+            memberchk(Mv, ListOfMoves), 
+            move(GameState, Mv, NewState), 
+            value(NewState, Player, Value) 
+        ), 
+        OrderedMoves
+    ),
+    choose_last_move(OrderedMoves, _-Move).
+
+choose_last_move([Last], Last).
+choose_last_move([_ | Moves], Last) :- chooseLastMove(Moves, Last).

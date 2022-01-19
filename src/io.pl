@@ -81,20 +81,20 @@ play_game(Config) :-
     play_turn(GameState, Config).
 
 play_turn(GameState, Config) :-
-    GameState = game_state(Board, _, _, _, _, _),
+    GameState = game_state(Board, _, _, _, _),
     game_over(GameState, Winner),
     display_board(Board),
     nl,
     open_menu(menu_state(game_over(Winner), Config)).
 
 play_turn(GameState, Config) :-
-    GameState = game_state(_, current_player(Player), _, player_x(Px), player_o(Po), _),
+    GameState = game_state(_, current_player(Player), _, Players, _),
     display_game(GameState),
-    player_info(Player, Px, Po, PlayerInfo),
+    player_info(Player, Players, PlayerInfo),
     play_turn(GameState, Config, PlayerInfo).
 
 play_turn(GameState, Config, human) :-
-    GameState = game_state(_, _, _, _, _, win_target(Goal)),
+    GameState = game_state(_, _, _, _, win_target(Goal)),
     format('Get a row, column or diagonal of ~w consecutive pieces to win.\n', Goal),
     nl,
     write('    |: move(column, row).     Put a piece on the given position.\n'),
@@ -174,8 +174,7 @@ display_menu(
         config, 
         config(
             size(Cols, Rows),
-            player_x(Px), 
-            player_o(Po), 
+            players(Px, Po), 
             first_player(First), 
             win_target(Goal)
         )
@@ -278,7 +277,7 @@ display_board(Board) :-
     display_board(Board, []).
 
 display_game(GameState) :-
-    GameState = game_state(Board, current_player(Player), _, _, _, _),
+    GameState = game_state(Board, current_player(Player), _, _, _),
     valid_moves(GameState, ValidMoves),
     display_board(Board, ValidMoves),
     nl,
@@ -309,7 +308,7 @@ response(
 ).
 
 response(
-    game_state(Board, _, _, _, _, _),
+    game_state(Board, _, _, _, _),
     move(ColChar, RowNum),
     move(Col, Row)
 ) :-
@@ -324,7 +323,7 @@ response(
     Row < BoardRows.
 
 response(
-    game_state(_, _, _, _, _, _), 
+    game_state(_, _, _, _, _), 
     give_up,
     give_up
 ).
@@ -361,8 +360,8 @@ response(
 
 response_config(
     board_size(Cols, Rows), 
-    config(_, Px, Po, F, win_target(Goal)), 
-    config(size(Cols, Rows), Px, Po, F, win_target(Goal))
+    config(_, Players, F, win_target(Goal)), 
+    config(size(Cols, Rows), Players, F, win_target(Goal))
 ) :-
     integer(Cols),
     integer(Rows),
@@ -373,8 +372,8 @@ response_config(
 
 response_config(
     bot(player_x, Level),
-    config(Size, _, Po, F, G),
-    config(Size, player_x(bot(Level)), Po, F, G)
+    config(Size, players(_, Po), F, G),
+    config(Size, players(bot(Level), Po), F, G)
 ) :-
     integer(Level),
     Level > 0,
@@ -382,8 +381,8 @@ response_config(
 
 response_config(
     bot(player_o, Level),
-    config(Size, Px, _, F, G),
-    config(Size, Px, player_o(bot(Level)), F, G)
+    config(Size, players(Px, _), F, G),
+    config(Size, players(Px, player_o(bot(Level))), F, G)
 ) :-
     integer(Level),
     Level > 0,
@@ -391,27 +390,27 @@ response_config(
 
 response_config(
     human(player_x),
-    config(Size, _, Po, F, G),
-    config(Size, player_x(human), Po, F, G)
+    config(Size, players(_, Po), F, G),
+    config(Size, players(player_x(human), Po), Po, F, G)
 ).
 
 response_config(
     human(player_o),
-    config(Size, Px, _, F, G),
-    config(Size, Px, player_o(human), F, G)
+    config(Size, players(Px, _), F, G),
+    config(Size, players(Px, player_o(human)), F, G)
 ).
 
 response_config(
     first_player(First),
-    config(Size, Px, Po, _, G),
-    config(Size, Px, Po, first_player(First), G)
+    config(Size, Players, _, G),
+    config(Size, Players, first_player(First), G)
 ) :-
     (First = player_x; First = player_o).
 
 response_config(
     win_pieces(Goal),
-    config(size(Cols, Rows), Px, Po, F, _),
-    config(size(Cols, Rows), Px, Po, F, win_target(Goal))
+    config(Size, Players, F, _),
+    config(Size, Players, F, win_target(Goal))
 ) :-
     integer(Goal),
     Goal > 0.
@@ -429,8 +428,7 @@ do_menu_action(_, exit).
 
 do_game_action(GameState, Config, move(Col, Row)) :-
     Move = position(Col, Row),
-    GameState = game_state(Board, _, last_move(Last), _, _, _),
-    valid_move(Board, Last, Move),
+    GameState = game_state(Board, _, last_move(Last), _, _),
     move(GameState, Move, NewGameState),
     play_turn(NewGameState, Config).
 
@@ -442,6 +440,6 @@ do_game_action(GameState, Config, move(Col, Row)) :-
     read_response(GameState, Action),
     do_game_action(GameState, Config, Action).
 
-do_game_action(game_state(_, current_player(Player), _, _, _, _), Config, give_up) :-
+do_game_action(game_state(_, current_player(Player), _, _, _), Config, give_up) :-
     next_player(Player, Opponent),
     open_menu(menu_state(game_over(Opponent), Config)).
