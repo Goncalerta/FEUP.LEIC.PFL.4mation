@@ -61,7 +61,7 @@ print_banner(Lines, WidthPadding, HeightPadding, Margin) :-
     print_banner_with_width(Lines, Width, HeightPadding, Margin).
 
 get_symbol(empty, ' ').
-get_symbol(legal_move, '?').  
+get_symbol(legal_move, '.').  
 get_symbol(player_x, 'X').
 get_symbol(player_o, 'O').
 

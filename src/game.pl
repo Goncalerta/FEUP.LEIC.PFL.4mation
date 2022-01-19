@@ -155,8 +155,8 @@ valid_moves(
 ) :-
     findall(Move, valid_move(Board, LastMove, Move), ListOfMoves).
 
-valid_move(Board, none, position(Cols, Rows)) :-
-    empty_cell(Board, position(Cols, Rows)).
+valid_move(Board, none, Move) :-
+    empty_cell(Board, Move).
 
 valid_move(Board, position(LastX, LastY), position(MoveX, MoveY)) :-
     empty_cell(Board, position(MoveX, MoveY)),

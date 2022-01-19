@@ -1,6 +1,6 @@
 nth00(I, J, Board, Cell) :-
-    nth0(I, Board, Row),
-    nth0(J, Row, Cell).
+    nth0(J, Board, Row),
+    nth0(I, Row, Cell).
 
 % Assumes that the board is valid (rectangular)
 board_size(Board, size(Cols, Rows)) :-
